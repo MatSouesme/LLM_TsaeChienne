@@ -43,8 +43,9 @@ class BonusScoringTool:
         resume_text: str,
         job_description: str,
         job_title: str,
-        industry: str = None
-    ) -> BonusScore:
+        industry: str = None,
+        return_usage: bool = False
+    ) -> tuple[BonusScore, dict] | BonusScore:
         """
         Calculate bonus scores for a resume-job match.
 
@@ -57,16 +58,35 @@ class BonusScoringTool:
         Returns:
             BonusScore object with all bonus scoring components
         """
-        # Score each component
-        industry_exp = self._score_industry_experience(resume_text, job_description, industry)
-        rare_skills = self._score_rare_skills(resume_text, job_description, job_title)
-        career_trajectory = self._score_career_trajectory(resume_text, job_title)
+        # Score each component and accumulate usage
+        total_input_tokens = 0
+        total_output_tokens = 0
 
-        return BonusScore(
+        industry_exp, usage = self._score_industry_experience(resume_text, job_description, industry)
+        if usage:
+            total_input_tokens += usage.get('input_tokens', 0)
+            total_output_tokens += usage.get('output_tokens', 0)
+
+        rare_skills, usage = self._score_rare_skills(resume_text, job_description, job_title)
+        if usage:
+            total_input_tokens += usage.get('input_tokens', 0)
+            total_output_tokens += usage.get('output_tokens', 0)
+
+        career_trajectory, usage = self._score_career_trajectory(resume_text, job_title)
+        if usage:
+            total_input_tokens += usage.get('input_tokens', 0)
+            total_output_tokens += usage.get('output_tokens', 0)
+
+        bonus_score = BonusScore(
             industry_experience=industry_exp,
             rare_skills_premium=rare_skills,
             career_trajectory=career_trajectory
         )
+
+        usage = {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
+        if return_usage:
+            return bonus_score, usage
+        return bonus_score
 
     def _call_claude(self, prompt: str, max_tokens: int = 1024) -> str:
         """
@@ -88,7 +108,16 @@ class BonusScoringTool:
                     "content": prompt
                 }]
             )
-            return message.content[0].text
+            text = message.content[0].text
+            usage = getattr(message, 'usage', None)
+            if usage is not None:
+                try:
+                    input_tokens = int(getattr(usage, 'input_tokens', 0) or 0)
+                    output_tokens = int(getattr(usage, 'output_tokens', 0) or 0)
+                    usage = {"input_tokens": input_tokens, "output_tokens": output_tokens}
+                except Exception:
+                    usage = None
+            return text, usage
         except Exception as e:
             print(f"Error calling Claude API: {e}")
             raise
@@ -137,14 +166,14 @@ SCORE: [number]
 EXPLANATION: [your explanation]
 """
 
-        response = self._call_claude(prompt)
+        response, usage = self._call_claude(prompt)
         score, explanation = self._parse_score_response(response, max_score=10.0)
 
         return ScoreDetail(
             score=score,
             max_score=10.0,
             explanation=explanation
-        )
+        ), usage
 
     def _score_rare_skills(
         self,
@@ -199,14 +228,14 @@ SCORE: [number]
 EXPLANATION: [your explanation]
 """
 
-        response = self._call_claude(prompt)
+        response, usage = self._call_claude(prompt)
         score, explanation = self._parse_score_response(response, max_score=5.0)
 
         return ScoreDetail(
             score=score,
             max_score=5.0,
             explanation=explanation
-        )
+        ), usage
 
     def _score_career_trajectory(
         self,
@@ -248,14 +277,14 @@ SCORE: [number]
 EXPLANATION: [your explanation]
 """
 
-        response = self._call_claude(prompt)
+        response, usage = self._call_claude(prompt)
         score, explanation = self._parse_score_response(response, max_score=5.0)
 
         return ScoreDetail(
             score=score,
             max_score=5.0,
             explanation=explanation
-        )
+        ), usage
 
     def _parse_score_response(self, response: str, max_score: float) -> tuple[float, str]:
         """

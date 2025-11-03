@@ -54,7 +54,7 @@ class ScoreExplainer:
         bonus_score: BonusScore,
         resume_text: str = None,
         job_description: str = None
-    ) -> DetailedMatch:
+    ) -> tuple[DetailedMatch, dict]:
         """
         Generate a complete detailed match report.
 
@@ -82,7 +82,7 @@ class ScoreExplainer:
         total_score = score_breakdown.total_score
 
         # Generate AI-powered analysis
-        overall_explanation = self._generate_overall_explanation(
+        overall_explanation, usage = self._generate_overall_explanation(
             score_breakdown, job_title, resume_text, job_description
         )
 
@@ -90,7 +90,7 @@ class ScoreExplainer:
         weaknesses = self._extract_weaknesses(score_breakdown)
         recommendation = self._generate_recommendation(total_score, strengths, weaknesses)
 
-        return DetailedMatch(
+        detailed = DetailedMatch(
             job_title=job_title,
             company=company,
             match_score=total_score,
@@ -102,6 +102,8 @@ class ScoreExplainer:
             salary=salary,
             location=location
         )
+        # Return the detailed match and usage info (from the explanation LLM call)
+        return detailed, usage
 
     def _generate_overall_explanation(
         self,
@@ -172,11 +174,20 @@ Keep it professional, factual, and actionable. Maximum 3 sentences.
                 max_tokens=512,
                 messages=[{"role": "user", "content": prompt}]
             )
-            return message.content[0].text.strip()
+            text = message.content[0].text.strip()
+            usage = getattr(message, 'usage', None)
+            if usage is not None:
+                try:
+                    input_tokens = int(getattr(usage, 'input_tokens', 0) or 0)
+                    output_tokens = int(getattr(usage, 'output_tokens', 0) or 0)
+                    usage = {"input_tokens": input_tokens, "output_tokens": output_tokens}
+                except Exception:
+                    usage = None
+            return text, usage
         except Exception as e:
             print(f"Error generating explanation: {e}")
             # Fallback to template-based explanation
-            return self._fallback_explanation(total, det, sem, bonus)
+            return self._fallback_explanation(total, det, sem, bonus), None
 
     def _fallback_explanation(
         self,

@@ -512,6 +512,23 @@
             <span class="badge">100-Point Hybrid Scoring</span>
         </header>
 
+        <!-- Observability Metrics -->
+        <div class="card" id="metrics-card" style="margin: 20px 0; display: none;">
+            <div class="card-header">
+                <div class="card-icon">📈</div>
+                <h2 class="card-title">Observability Metrics</h2>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                <div class="obs-metric"><strong>Requests</strong><div id="totalRequestsValue">0</div></div>
+                <div class="obs-metric"><strong>Successful</strong><div id="successValue">0</div></div>
+                <div class="obs-metric"><strong>Errors</strong><div id="errorsValue">0</div></div>
+                <div class="obs-metric"><strong>Avg latency</strong><div id="latencyValue">~0s</div></div>
+                <div class="obs-metric"><strong>Avg cost</strong><div id="costValue">$0.00</div></div>
+                <div class="obs-metric"><strong>Status</strong><div id="statusValue">Offline</div></div>
+            </div>
+        </div>
+
         <div class="main-content">
             <!-- CV Upload Section -->
             <div class="card">
@@ -921,6 +938,31 @@
         }
 
         checkBackendHealth();
+        // Load and poll observability metrics (restore UI from backup)
+        async function loadMetrics() {
+            try {
+                const response = await fetch(`${API_URL}/api/metrics`);
+                if (!response.ok) throw new Error('Failed to load metrics');
+                const metrics = await response.json();
+
+                // Ensure metrics card visible
+                document.getElementById('metrics-card').style.display = 'block';
+
+                document.getElementById('latencyValue').textContent = `~${metrics.avg_latency}s`;
+                document.getElementById('successValue').textContent = metrics.successful_matches;
+                document.getElementById('costValue').textContent = `$${metrics.avg_cost}`;
+                document.getElementById('statusValue').textContent = metrics.status === 'online' ? 'Online' : 'Offline';
+                document.getElementById('totalRequestsValue').textContent = metrics.total_requests;
+                document.getElementById('errorsValue').textContent = metrics.errors;
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        }
+
+        // Poll metrics every 10s
+        setInterval(loadMetrics, 10000);
+        // initial load
+        loadMetrics();
     </script>
 </body>
 </html>

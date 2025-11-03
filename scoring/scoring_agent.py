@@ -61,7 +61,7 @@ class ScoringAgent:
         candidate_salary_expectation: int = None,
         industry: str = None,
         company_culture: str = None
-    ) -> DetailedMatch:
+    ) -> tuple[DetailedMatch, dict]:
         """
         Score a candidate for a job position.
 
@@ -101,27 +101,29 @@ class ScoringAgent:
 
         # Step 2: Semantic Scoring (40 points)
         print("  [2/4] Calculating semantic scores (AI analysis, ~30s)...")
-        semantic_score = self.semantic_tool.score_resume_job_match(
+        semantic_score, semantic_usage = self.semantic_tool.score_resume_job_match(
             resume_text=resume_text,
             job_description=job_description,
             job_title=job_title,
-            company_culture=company_culture
+            company_culture=company_culture,
+            return_usage=True
         )
         print(f"        Semantic: {semantic_score.total:.1f}/40")
 
         # Step 3: Bonus Scoring (20 points)
         print("  [3/4] Calculating bonus scores (AI analysis, ~20s)...")
-        bonus_score = self.bonus_tool.score_resume_job_match(
+        bonus_score, bonus_usage = self.bonus_tool.score_resume_job_match(
             resume_text=resume_text,
             job_description=job_description,
             job_title=job_title,
-            industry=industry
+            industry=industry,
+            return_usage=True
         )
         print(f"        Bonus: {bonus_score.total:.1f}/20")
 
         # Step 4: Generate Explanation and Report
         print("  [4/4] Generating detailed match report...")
-        detailed_match = self.explainer.generate_detailed_match(
+        detailed_match, explainer_usage = self.explainer.generate_detailed_match(
             job_title=job_title,
             company=company,
             salary=job_salary,
@@ -136,7 +138,22 @@ class ScoringAgent:
         print(f"\n[COMPLETE] Total Score: {detailed_match.match_score:.1f}/100")
         print(f"           Recommendation: {detailed_match.recommendation}")
 
-        return detailed_match
+        # Aggregate usage from semantic, bonus and explainer (deterministic is local)
+        total_input = 0
+        total_output = 0
+        if semantic_usage:
+            total_input += semantic_usage.get('input_tokens', 0)
+            total_output += semantic_usage.get('output_tokens', 0)
+        if bonus_usage:
+            total_input += bonus_usage.get('input_tokens', 0)
+            total_output += bonus_usage.get('output_tokens', 0)
+        if explainer_usage:
+            total_input += explainer_usage.get('input_tokens', 0)
+            total_output += explainer_usage.get('output_tokens', 0)
+
+        usage = {"input_tokens": total_input, "output_tokens": total_output}
+
+        return detailed_match, usage
 
     def score_candidate_simple(
         self,
@@ -163,7 +180,7 @@ class ScoringAgent:
         Returns:
             DetailedMatch object with complete scoring and analysis
         """
-        return self.score_candidate(
+        detailed, usage = self.score_candidate(
             resume_text=resume_text,
             job_title=job_data.get("title", ""),
             company=job_data.get("company", ""),
@@ -176,6 +193,7 @@ class ScoringAgent:
             industry=job_data.get("industry"),
             company_culture=job_data.get("culture")
         )
+        return detailed
 
     def get_score_breakdown_dict(self, detailed_match: DetailedMatch) -> Dict[str, Any]:
         """

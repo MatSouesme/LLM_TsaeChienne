@@ -42,8 +42,9 @@ class SemanticScoringTool:
         resume_text: str,
         job_description: str,
         job_title: str,
-        company_culture: str = None
-    ) -> SemanticScore:
+        company_culture: str = None,
+        return_usage: bool = False
+    ) -> tuple[SemanticScore, dict] | SemanticScore:
         """
         Calculate semantic scores for a resume-job match.
 
@@ -56,20 +57,43 @@ class SemanticScoringTool:
         Returns:
             SemanticScore object with all semantic scoring components
         """
-        # Score each component
-        soft_skills = self._score_soft_skills(resume_text, job_description, job_title)
-        culture_fit = self._score_culture_fit(resume_text, job_description, company_culture)
-        growth_potential = self._score_growth_potential(resume_text, job_title)
-        project_relevance = self._score_project_relevance(resume_text, job_description)
+        # Score each component and accumulate usage
+        total_input_tokens = 0
+        total_output_tokens = 0
 
-        return SemanticScore(
+        soft_skills, usage = self._score_soft_skills(resume_text, job_description, job_title)
+        if usage:
+            total_input_tokens += usage.get('input_tokens', 0)
+            total_output_tokens += usage.get('output_tokens', 0)
+
+        culture_fit, usage = self._score_culture_fit(resume_text, job_description, company_culture)
+        if usage:
+            total_input_tokens += usage.get('input_tokens', 0)
+            total_output_tokens += usage.get('output_tokens', 0)
+
+        growth_potential, usage = self._score_growth_potential(resume_text, job_title)
+        if usage:
+            total_input_tokens += usage.get('input_tokens', 0)
+            total_output_tokens += usage.get('output_tokens', 0)
+
+        project_relevance, usage = self._score_project_relevance(resume_text, job_description)
+        if usage:
+            total_input_tokens += usage.get('input_tokens', 0)
+            total_output_tokens += usage.get('output_tokens', 0)
+
+        semantic_score = SemanticScore(
             soft_skills_match=soft_skills,
             culture_fit=culture_fit,
             growth_potential=growth_potential,
             project_relevance=project_relevance
         )
 
-    def _call_claude(self, prompt: str, max_tokens: int = 1024) -> str:
+        usage = {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
+        if return_usage:
+            return semantic_score, usage
+        return semantic_score
+
+    def _call_claude(self, prompt: str, max_tokens: int = 1024):
         """
         Call Claude API with a prompt.
 
@@ -89,7 +113,16 @@ class SemanticScoringTool:
                     "content": prompt
                 }]
             )
-            return message.content[0].text
+            text = message.content[0].text
+            usage = getattr(message, 'usage', None)
+            if usage is not None:
+                try:
+                    input_tokens = int(getattr(usage, 'input_tokens', 0) or 0)
+                    output_tokens = int(getattr(usage, 'output_tokens', 0) or 0)
+                    usage = {"input_tokens": input_tokens, "output_tokens": output_tokens}
+                except Exception:
+                    usage = None
+            return text, usage
         except Exception as e:
             print(f"Error calling Claude API: {e}")
             raise
@@ -132,14 +165,14 @@ SCORE: [number]
 EXPLANATION: [your explanation]
 """
 
-        response = self._call_claude(prompt)
+        response, usage = self._call_claude(prompt)
         score, explanation = self._parse_score_response(response, max_score=15.0)
 
         return ScoreDetail(
             score=score,
             max_score=15.0,
             explanation=explanation
-        )
+        ), usage
 
     def _score_culture_fit(
         self,
@@ -178,14 +211,14 @@ SCORE: [number]
 EXPLANATION: [your explanation]
 """
 
-        response = self._call_claude(prompt)
+        response, usage = self._call_claude(prompt)
         score, explanation = self._parse_score_response(response, max_score=10.0)
 
         return ScoreDetail(
             score=score,
             max_score=10.0,
             explanation=explanation
-        )
+        ), usage
 
     def _score_growth_potential(
         self,
@@ -220,14 +253,14 @@ SCORE: [number]
 EXPLANATION: [your explanation]
 """
 
-        response = self._call_claude(prompt)
+        response, usage = self._call_claude(prompt)
         score, explanation = self._parse_score_response(response, max_score=10.0)
 
         return ScoreDetail(
             score=score,
             max_score=10.0,
             explanation=explanation
-        )
+        ), usage
 
     def _score_project_relevance(
         self,
@@ -263,14 +296,14 @@ SCORE: [number]
 EXPLANATION: [your explanation]
 """
 
-        response = self._call_claude(prompt)
+        response, usage = self._call_claude(prompt)
         score, explanation = self._parse_score_response(response, max_score=5.0)
 
         return ScoreDetail(
             score=score,
             max_score=5.0,
             explanation=explanation
-        )
+        ), usage
 
     def _parse_score_response(self, response: str, max_score: float) -> tuple[float, str]:
         """

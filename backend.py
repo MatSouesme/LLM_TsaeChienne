@@ -555,8 +555,9 @@ async def detailed_score(
         # Initialize scoring agent
         agent = ScoringAgent()
 
-        # Score the candidate
-        detailed_match = agent.score_candidate(
+        # Score the candidate and collect usage info
+        start_time = time.time()
+        detailed_match, usage = agent.score_candidate(
             resume_text=resume_content,
             job_title=job_title,
             company=company,
@@ -569,6 +570,17 @@ async def detailed_score(
             industry=industry,
             company_culture=None
         )
+
+        # Update observability metrics
+        latency = time.time() - start_time
+        input_tokens = usage.get('input_tokens', 0) if usage else 0
+        output_tokens = usage.get('output_tokens', 0) if usage else 0
+        cost = calculate_token_cost(input_tokens, output_tokens) if (input_tokens or output_tokens) else 0.0
+
+        metrics["total_requests"] += 1
+        metrics["successful_matches"] += 1
+        metrics["total_latency"] += latency
+        metrics["total_cost"] += cost
 
         # Convert to dict and return
         return detailed_match.to_dict()
