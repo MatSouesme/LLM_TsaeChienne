@@ -482,6 +482,8 @@ async def detailed_score(
     resume_text: Optional[str] = Form(None),
     job_title: str = Form(...),
     company: str = Form(...),
+    description: Optional[str] = Form(None),
+    requirements: Optional[str] = Form(None),
     industry: Optional[str] = Form(None),
     location: Optional[str] = Form("Remote"),
     salary: Optional[int] = Form(None)
@@ -518,18 +520,36 @@ async def detailed_score(
         if len(resume_content) > 5000:
             raise HTTPException(status_code=400, detail="Resume text exceeds 5000 characters limit")
 
-    # Find the job in database
-    matching_job = None
-    for job in JOB_DATABASE:
-        if job['title'] == job_title and job['company'] == company:
-            matching_job = job
-            break
+    # Use provided description and requirements, or try to find job in database
+    job_description = description
+    job_requirements = []
+    job_location = location
+    job_salary = salary or 0
 
-    if not matching_job:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Job '{job_title}' at '{company}' not found in database"
-        )
+    if not description or not requirements:
+        # Try to find in database as fallback
+        matching_job = None
+        for job in JOB_DATABASE:
+            if job['title'] == job_title and job['company'] == company:
+                matching_job = job
+                break
+
+        if matching_job:
+            job_description = job_description or matching_job['description']
+            if not requirements:
+                job_requirements = matching_job['requirements']
+            job_location = matching_job['location']
+            job_salary = matching_job['salary']
+            industry = industry or matching_job.get('industry')
+        elif not description:
+            raise HTTPException(
+                status_code=400,
+                detail="Job description is required"
+            )
+
+    # Parse requirements if provided as string
+    if requirements:
+        job_requirements = [req.strip() for req in requirements.split(',')]
 
     try:
         # Initialize scoring agent
@@ -538,16 +558,16 @@ async def detailed_score(
         # Score the candidate
         detailed_match = agent.score_candidate(
             resume_text=resume_content,
-            job_title=matching_job['title'],
-            company=matching_job['company'],
-            job_description=matching_job['description'],
-            job_requirements=matching_job['requirements'],
-            job_location=matching_job['location'],
-            job_salary=matching_job['salary'],
+            job_title=job_title,
+            company=company,
+            job_description=job_description,
+            job_requirements=job_requirements,
+            job_location=job_location,
+            job_salary=job_salary,
             candidate_location=location,
             candidate_salary_expectation=salary,
-            industry=industry or matching_job.get('industry'),
-            company_culture=matching_job.get('culture')
+            industry=industry,
+            company_culture=None
         )
 
         # Convert to dict and return
