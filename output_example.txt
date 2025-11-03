@@ -1,0 +1,255 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.6, pytest-8.4.1, pluggy-1.6.0 -- C:\Program Files\Python311\python.exe
+cachedir: .pytest_cache
+Fugue tests will be initialized with options:
+rootdir: C:\Users\mdrag\Documents\Albert\m2\langchain
+configfile: pyproject.toml
+plugins: anyio-4.8.0, fugue-0.9.1, langsmith-0.3.45, asyncio-1.1.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_scoring_agent.py::test_scoring_agent ================================================================================
+TEST: Complete Scoring Agent
+================================================================================
+
+Resume preview (first 300 chars):
+Marie Dupont
+Data Scientist / ML Engineer
+
+EDUCATION:
+- Master's degree in Applied Mathematics and Machine Learning, Université Paris-Saclay, 2022
+- Bachelor's degree in Mathematics, École Polytechnique, 2020
+- Specialization: Statistical Learning, Optimization, Stochastic Processes
+
+EXPERIENCE:
+
+Da...
+
+================================================================================
+INITIALIZING SCORING AGENT...
+================================================================================
+[OK] Scoring agent initialized with all tools
+
+================================================================================
+SCORING CANDIDATE (this will take ~60 seconds)...
+================================================================================
+
+Starting scoring process...
+  [1/4] Calculating deterministic scores...
+        Deterministic: 25.0/40
+  [2/4] Calculating semantic scores (AI analysis, ~30s)...
+        Semantic: 33.0/40
+  [3/4] Calculating bonus scores (AI analysis, ~20s)...
+        Bonus: 17.0/20
+  [4/4] Generating detailed match report...
+
+[COMPLETE] Total Score: 75.0/100
+           Recommendation: Recommended - Strong candidate, proceed to interview
+
+================================================================================
+COMPLETE MATCH REPORT
+================================================================================
+
+[JOB] Senior Python Developer at Tech Innovators Inc.
+      Location: Paris / Remote
+      Salary: €130,000
+
+[SCORE] Overall Match: 75.0/100
+        Quality: Good
+
+--------------------------------------------------------------------------------
+SCORE BREAKDOWN:
+--------------------------------------------------------------------------------
+
+1. DETERMINISTIC SCORE: 25.0/40
+   - Skills Matching:  6.0/15
+   - Experience Years: 4.0/10
+   - Education Match:  5.0/5
+   - Salary Fit:       5.0/5
+   - Location Match:   5.0/5
+
+2. SEMANTIC SCORE: 33.0/40
+   - Soft Skills Match:  12.0/15
+   - Culture Fit:        8.0/10
+   - Growth Potential:   9.0/10
+   - Project Relevance:  4.0/5
+
+3. BONUS SCORE: 17.0/20
+   - Industry Experience: 8.0/10
+   - Rare Skills Premium: 5.0/5
+   - Career Trajectory:   4.0/5
+
+--------------------------------------------------------------------------------
+ANALYSIS:
+--------------------------------------------------------------------------------
+
+[EXPLANATION]
+This candidate is a good match for the Senior Python Developer role, scoring 75.0/100 overall. Their strongest areas are Soft Skills (12.0/15), Industry Experience (8.0/10), and Culture Fit (8.0/10), indicating strong interpersonal abilities and relevant industry knowledge. However, the candidate could improve their Skills Matching (6.0/15), which suggests a need to further align their technical expertise with the specific requirements of the role.
+
+[STRENGTHS]
+  1. Strong educational background
+  2. Salary expectations well-aligned
+  3. Excellent location fit
+  4. Outstanding soft skills and communication
+  5. Excellent cultural alignment
+
+[WEAKNESSES]
+  1. Missing 10 key technical skills
+  2. Experience level below requirement (5 years needed)
+
+[RECOMMENDATION]
+Recommended - Strong candidate, proceed to interview
+
+================================================================================
+FULL JSON OUTPUT:
+================================================================================
+{
+  "job_title": "Senior Python Developer",
+  "company": "Tech Innovators Inc.",
+  "match_score": 75.0,
+  "score_breakdown": {
+    "deterministic": {
+      "total": 25.0,
+      "max": 40.0,
+      "details": {
+        "skills_matching": {
+          "score": 6.0,
+          "max": 15.0,
+          "explanation": "7/21 competences requises maitrisees. Matchees: go, docker, aws, docker and kubernetes, python. Manquantes: django, microservices, 5+ years python experience",
+          "matched_skills": [
+            "go",
+            "docker",
+            "aws",
+            "docker and kubernetes",
+            "python",
+            "gcp",
+            "kubernetes"
+          ],
+          "missing_skills": [
+            "django",
+            "microservices",
+            "5+ years python experience",
+            "mongodb",
+            "fastapi",
+            "azure",
+            "restful apis design",
+            "ci/cd",
+            "postgresql/mongodb knowledge",
+            "ci/cd pipelines"
+          ],
+          "match_ratio": 0.33,
+          "hard_skills_matched": 7,
+          "soft_skills_matched": 0,
+          "semantic_soft_skills": false
+        },
+        "experience_years": {
+          "score": 4,
+          "max": 10.0,
+          "explanation": "The candidate has 2 years of experience as a Data Scientist at a FinTech startup, which aligns with the target job requirements. The experience in building predictive models, time series forecasting, and working in a financial services domain is directly relevant to the Senior Python Developer role. However, the candidate's other experiences in machine learning and research do not directly translate to the target job requirements.",
+          "resume_years": 2,
+          "required_years": 5,
+          "semantic_evaluation": true
+        },
+        "education_match": {
+          "score": 5.0,
+          "max": 5.0,
+          "explanation": "Master correspond aux attentes (Bachelor (par défaut))",
+          "candidate_level": 4,
+          "required_level": 3
+        },
+        "salary_fit": {
+          "score": 5.0,
+          "max": 5.0,
+          "explanation": "Salaire offert correspond aux attentes (±8%)",
+          "job_salary": 130000,
+          "candidate_expectation": 120000,
+          "diff_percent": 8.33
+        },
+        "location_match": {
+          "score": 5.0,
+          "max": 5.0,
+          "explanation": "Poste en remote, flexible",
+          "job_location": "Paris / Remote",
+          "candidate_location": "Paris"
+        }
+      }
+    },
+    "semantic": {
+      "total": 33.0,
+      "max": 40.0,
+      "details": {
+        "soft_skills_match": {
+          "score": 12.0,
+          "max": 15.0,
+          "explanation": "The candidate's resume demonstrates strong soft skills relevant to the Senior Python Developer role. Their experience in collaborative work environments, problem-solving mindset, and continuous learning suggest excellent leadership, communication, and initiative. The candidate's background in financial applications and algorithmic trading further indicates a strong problem-solving approach and an ability to work effectively in a team setting."
+        },
+        "culture_fit": {
+          "score": 8.0,
+          "max": 10.0,
+          "explanation": "The candidate's values and work style seem to align well with the company's culture and role requirements. The candidate has a strong technical background, a problem-solving mindset, and a passion for continuous learning - all of which are highly valued by the company. The candidate's experience in fintech and financial applications is also a good fit for the role. Additionally, the candidate's preference for remote work and their salary expectation match the company's offering, suggesting a mutually beneficial long-term fit."
+        },
+        "growth_potential": {
+          "score": 9.0,
+          "max": 10.0,
+          "explanation": "The candidate, Marie Dupont, has exceptional growth potential for the Senior Python Developer role. Her strong educational background, diverse work experience, and deep technical expertise in both machine learning and software engineering demonstrate a high learning capacity and the ability to adapt to new technologies and environments. Her career progression, with increasing responsibilities in both research and industry, further indicates her potential to excel and grow in this role."
+        },
+        "project_relevance": {
+          "score": 4.0,
+          "max": 5.0,
+          "explanation": "The candidate's past projects are highly relevant to the Senior Python Developer role in the fintech team. The candidate has experience in developing predictive models and forecasting tools for financial applications, which aligns well with the job requirements. Additionally, the candidate has worked with Python, SQL, and cloud technologies, which are all essential for building scalable backend systems and APIs. The candidate's expertise in machine learning and data science is also a valuable asset for the fintech team."
+        }
+      }
+    },
+    "bonus": {
+      "total": 17.0,
+      "max": 20.0,
+      "details": {
+        "industry_experience": {
+          "score": 8.0,
+          "max": 10.0,
+          "explanation": "The candidate has 2 years of direct experience in the fintech industry, working as a data scientist at a fintech startup. They have developed predictive models for credit risk assessment and implemented time series forecasting for financial markets, demonstrating strong domain knowledge. Additionally, the candidate has collaborated with the quant team on algorithmic trading strategies, indicating a deep understanding of the fintech domain. While they don't have 5+ years of experience, the candidate's industry-specific projects and skills make them a strong fit for the Senior Python Developer role in the fintech team."
+        },
+        "rare_skills_premium": {
+          "score": 5.0,
+          "max": 5.0,
+          "explanation": "The candidate has multiple rare and highly relevant skills for the Senior Python Developer role, including: 5+ years of Python development experience, strong expertise in FastAPI or Django, database design with PostgreSQL or MongoDB, container technologies like Docker and Kubernetes, RESTful API design, and cloud platform experience. These specialized skills in backend development, cloud infrastructure, and financial technologies are in high demand and hard to find, making the candidate a strong fit for this fintech role."
+        },
+        "career_trajectory": {
+          "score": 4.0,
+          "max": 5.0,
+          "explanation": "The candidate has a clear and coherent career progression, with a consistent focus on data science, machine learning, and applied mathematics. Their educational background and work experience at a FinTech startup and research internship at CNRS demonstrate a solid foundation and increasing responsibilities in the field. The candidate's technical skills and project experience also align well with the Senior Python Developer role."
+        }
+      }
+    }
+  },
+  "overall_explanation": "This candidate is a good match for the Senior Python Developer role, scoring 75.0/100 overall. Their strongest areas are Soft Skills (12.0/15), Industry Experience (8.0/10), and Culture Fit (8.0/10), indicating strong interpersonal abilities and relevant industry knowledge. However, the candidate could improve their Skills Matching (6.0/15), which suggests a need to further align their technical expertise with the specific requirements of the role.",
+  "strengths": [
+    "Strong educational background",
+    "Salary expectations well-aligned",
+    "Excellent location fit",
+    "Outstanding soft skills and communication",
+    "Excellent cultural alignment"
+  ],
+  "weaknesses": [
+    "Missing 10 key technical skills",
+    "Experience level below requirement (5 years needed)"
+  ],
+  "recommendation": "Recommended - Strong candidate, proceed to interview",
+  "salary": 130000,
+  "location": "Paris / Remote"
+}
+
+================================================================================
+[OK] TEST COMPLETED SUCCESSFULLY
+================================================================================
+
+================================================================================
+SUMMARY
+================================================================================
+Candidate: Marie Dupont (Data Scientist/ML Engineer)
+Position:  Senior Python Developer at Tech Innovators Inc.
+Score:     75.0/100
+Result:    Recommended - Strong candidate, proceed to interview
+PASSED
+
+============================= 1 passed in 23.27s ==============================
