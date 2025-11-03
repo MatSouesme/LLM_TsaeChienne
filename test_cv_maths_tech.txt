@@ -1,0 +1,47 @@
+Marie Dupont
+Data Scientist / ML Engineer
+
+EDUCATION:
+- Master's degree in Applied Mathematics and Machine Learning, Université Paris-Saclay, 2022
+- Bachelor's degree in Mathematics, École Polytechnique, 2020
+- Specialization: Statistical Learning, Optimization, Stochastic Processes
+
+EXPERIENCE:
+
+Data Scientist - FinTech Startup, Paris (2022-2024)
+- Developed predictive models for credit risk assessment using logistic regression, random forests, and gradient boosting
+- Implemented time series forecasting for financial markets using ARIMA and LSTM neural networks
+- Built automated ML pipelines with Python (scikit-learn, pandas, numpy)
+- Collaborated with quant team on algorithmic trading strategies
+- Technologies: Python, R, SQL, Git, Docker
+
+Research Intern - CNRS, Paris (2021-2022)
+- Conducted research on deep learning applications in computer vision
+- Implemented CNNs and transfer learning for image classification
+- Published paper on optimization techniques for neural networks
+- Technologies: Python, PyTorch, TensorFlow, Jupyter
+
+TECHNICAL SKILLS:
+- Programming: Python (expert), R (advanced), SQL, Git
+- ML/DL Frameworks: scikit-learn, PyTorch, TensorFlow, Keras, XGBoost
+- Mathematics: Statistics, Probability Theory, Linear Algebra, Optimization, Stochastic Calculus
+- Data Tools: pandas, numpy, matplotlib, seaborn, Jupyter
+- MLOps: Docker, MLflow, basic Kubernetes
+- Cloud: AWS (S3, EC2), GCP basics
+
+PROJECTS:
+- Built end-to-end ML system for fraud detection (95% accuracy)
+- Developed NLP sentiment analysis tool using transformers
+- Created algorithmic trading backtest framework in Python
+
+LANGUAGES:
+- French (native)
+- English (fluent)
+
+INTERESTS:
+- Quantitative Finance, Algorithmic Trading, Deep Learning Research
+- Open source contributions to ML libraries
+- Kaggle competitions (Top 5% ranking)
+
+LOCATION PREFERENCE: Paris or Remote
+SALARY EXPECTATION: €130,000+

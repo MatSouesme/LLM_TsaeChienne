@@ -1,0 +1,23 @@
+John Doe
+Senior Python Developer
+
+EXPERIENCE:
+- 5 years in FinTech and gambling/betting platforms
+- Expert in Python, SQL, Docker, Kubernetes
+- Built high-frequency data processing pipelines for sports betting
+- Experience with microservices architecture and real-time systems
+- Led backend team for online poker platform
+
+SKILLS:
+Python, SQL, Docker, Kubernetes, FastAPI, PostgreSQL, Redis, Kafka
+Trading Systems, Real-time Data Processing, DevOps, Gambling platforms
+
+EDUCATION:
+M.S. Computer Science, 2018
+B.S. Computer Science, 2016
+
+LOCATION PREFERENCE:
+Remote or France
+
+SALARY EXPECTATION:
+$120,000+
