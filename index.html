@@ -733,7 +733,16 @@
         async function analyzeCandidate() {
             // Validate inputs
             const cvFile = document.getElementById('cv-upload').files[0];
-            const jobTitle = document.getElementById('job-title').value.trim();
+            // jobTitle can come from replaced select (offer-select) or from a hidden field if an offer was selected
+            let jobTitle = '';
+            const hiddenTitle = document.getElementById('job-title-hidden');
+            const offerSelect = document.getElementById('offer-select');
+            const jobTitleInput = document.getElementById('job-title');
+            if (hiddenTitle) jobTitle = hiddenTitle.value.trim();
+            else if (offerSelect && offerSelect.value) {
+                // if an offer is selected, try to get its text
+                jobTitle = offerSelect.options[offerSelect.selectedIndex].text.split(' — ')[0].trim();
+            } else if (jobTitleInput) jobTitle = jobTitleInput.value.trim();
             const company = document.getElementById('company').value.trim();
             const description = document.getElementById('description').value.trim();
             const requirements = document.getElementById('requirements').value.trim();
@@ -963,6 +972,64 @@
         setInterval(loadMetrics, 10000);
         // initial load
         loadMetrics();
+
+        // Load available job offers and replace job-title input with a dropdown
+        async function loadOffers() {
+            try {
+                const res = await fetch(`${API_URL}/api/offers`);
+                if (!res.ok) return;
+                const offers = await res.json();
+
+                const jobTitleEl = document.getElementById('job-title');
+                const select = document.createElement('select');
+                select.id = 'offer-select';
+                select.innerHTML = '<option value="">Sélectionner une offre...</option>';
+
+                offers.forEach(o => {
+                    const opt = document.createElement('option');
+                    opt.value = o.id;
+                    opt.textContent = `${o.title} — ${o.company}`;
+                    select.appendChild(opt);
+                });
+
+                // replace the job-title input with the select
+                jobTitleEl.parentNode.replaceChild(select, jobTitleEl);
+
+                select.addEventListener('change', async (e) => {
+                    const id = parseInt(e.target.value);
+                    if (!id) return;
+                    const detRes = await fetch(`${API_URL}/api/offers/${id}`);
+                    if (!detRes.ok) return;
+                    const detail = await detRes.json();
+                    // fill fields
+                    // create a hidden job-title input to keep form expectations
+                    let hidden = document.getElementById('job-title-hidden');
+                    if (!hidden) {
+                        hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.id = 'job-title-hidden';
+                        document.querySelector('.card').appendChild(hidden);
+                    }
+                    hidden.value = detail.title || '';
+                    // company
+                    document.getElementById('company').value = detail.company || '';
+                    // description
+                    document.getElementById('description').value = detail.description || '';
+                    // requirements
+                    document.getElementById('requirements').value = (detail.requirements || []).join(', ');
+                    // location & salary & industry
+                    document.getElementById('location').value = detail.location || 'Remote';
+                    document.getElementById('salary').value = detail.salary || '';
+                    document.getElementById('industry').value = detail.industry || '';
+                });
+
+            } catch (error) {
+                console.error('Error loading offers:', error);
+            }
+        }
+
+        // initial load of offers
+        loadOffers();
     </script>
 </body>
 </html>

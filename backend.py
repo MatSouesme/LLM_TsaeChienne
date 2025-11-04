@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from anthropic import Anthropic
 from pypdf import PdfReader
 from dotenv import load_dotenv
+from storage.offers_db import init_db, add_offer, list_offers, get_offer
 
 # Load environment variables
 load_dotenv()
@@ -39,6 +40,9 @@ app.add_middleware(
 
 # Initialize Anthropic client
 anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+# Initialize local offers DB
+init_db()
 
 # Observability metrics
 metrics = {
@@ -411,6 +415,44 @@ async def get_metrics():
         errors=metrics["errors"],
         status="online"
     )
+
+
+@app.get("/api/offers")
+def api_list_offers():
+    """List all job offers (id, title, company, metadata)."""
+    return list_offers()
+
+
+@app.get("/api/offers/{offer_id}")
+def api_get_offer(offer_id: int):
+    """Get a single offer's full details."""
+    offer = get_offer(offer_id)
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    return offer
+
+
+@app.post("/api/offers")
+async def api_create_offer(
+    title: str = Form(...),
+    company: str = Form(...),
+    location: str = Form(""),
+    salary: Optional[int] = Form(None),
+    industry: str = Form(""),
+    description: str = Form(""),
+    requirements: str = Form(""),
+    pdf_file: UploadFile = File(None)
+):
+    """Create a new job offer. Accepts an optional PDF file."""
+    pdf_bytes = None
+    pdf_filename = None
+    if pdf_file:
+        pdf_bytes = await pdf_file.read()
+        pdf_filename = pdf_file.filename
+
+    req_list = [r.strip() for r in requirements.split(',') if r.strip()]
+    offer_id = add_offer(title, company, location, salary, industry, description, req_list, pdf_bytes, pdf_filename)
+    return {"id": offer_id}
 
 
 @app.post("/api/match")
