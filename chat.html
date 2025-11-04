@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Job Matching Chat - Conversational Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.9);
+            --bg-message-user: rgba(99, 102, 241, 0.15);
+            --bg-message-agent: rgba(30, 41, 59, 0.6);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: rgba(148, 163, 184, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            padding: 20px 30px;
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid var(--primary);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--primary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Main Chat Area */
+        .chat-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Messages Area */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .message.agent .message-avatar {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .message-content {
+            max-width: 70%;
+            background: var(--bg-message-agent);
+            padding: 15px 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .message.user .message-content {
+            background: var(--bg-message-user);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .message-text {
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .message-meta {
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Job Results */
+        .job-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .job-title {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .job-company {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .match-score {
+            padding: 6px 12px;
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .job-details {
+            display: flex;
+            gap: 20px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+
+        .job-detail {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-secondary);
+        }
+
+        .score-breakdown {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 20px 30px;
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .input-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            resize: none;
+            min-height: 60px;
+            max-height: 150px;
+            transition: border-color 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .file-upload {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-label {
+            padding: 8px 16px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--primary);
+            transition: background 0.3s ease;
+        }
+
+        .file-label:hover {
+            background: rgba(99, 102, 241, 0.25);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-name {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-size: 1rem;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(148, 163, 184, 0.2);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(148, 163, 184, 0.3);
+            box-shadow: none;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-card);
+            border-left: 1px solid var(--border);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+        }
+
+        .profile-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .profile-label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+        }
+
+        .profile-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Loading */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 15px 20px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-state h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .empty-state p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 500px;
+        }
+
+        .suggestions {
+            margin-top: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .suggestion-chip {
+            padding: 10px 20px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid var(--primary);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .suggestion-chip:hover {
+            background: rgba(99, 102, 241, 0.25);
+            transform: translateY(-2px);
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .sidebar {
+                display: none;
+            }
+
+            .message-content {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-left">
+                <h1>🤖 AI Job Matching Chat</h1>
+                <span class="badge">Powered by Claude Haiku</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn-secondary" onclick="resetChat()">New Chat</button>
+                <a href="index_offers.html" style="text-decoration: none;">
+                    <button class="btn-secondary">Back to Offers</button>
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="chat-wrapper">
+            <!-- Chat Area -->
+            <div class="chat-main">
+                <!-- Messages -->
+                <div class="messages-container" id="messagesContainer">
+                    <div class="empty-state" id="emptyState">
+                        <h2>Welcome to AI Job Matching! 👋</h2>
+                        <p>I'm your intelligent job matching assistant. Tell me about your experience and what you're looking for, and I'll help you find the perfect match.</p>
+
+                        <div class="suggestions">
+                            <div class="suggestion-chip" onclick="sendSuggestion('I have 8 years of Python experience. Looking for fintech jobs, remote, 100K+')">
+                                💼 Senior Python + Fintech
+                            </div>
+                            <div class="suggestion-chip" onclick="sendSuggestion('I need a junior developer role in tech')">
+                                🌱 Junior Developer
+                            </div>
+                            <div class="suggestion-chip" onclick="sendSuggestion('Show me data science jobs in Paris')">
+                                📊 Data Science Paris
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-area">
+                    <div class="input-wrapper">
+                        <div class="input-group">
+                            <div class="file-upload">
+                                <label for="resumeFile" class="file-label">
+                                    📎 Upload Resume (Optional)
+                                </label>
+                                <input type="file" id="resumeFile" accept=".pdf,.txt" onchange="handleFileSelect()">
+                                <span class="file-name" id="fileName"></span>
+                            </div>
+                            <textarea
+                                id="messageInput"
+                                placeholder="Tell me about your experience and what you're looking for..."
+                                onkeypress="handleKeyPress(event)"
+                            ></textarea>
+                        </div>
+                        <button id="sendBtn" onclick="sendMessage()">
+                            Send 🚀
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <h3>📋 Collected Profile</h3>
+                <div id="profileSidebar">
+                    <div class="profile-item">
+                        <div class="profile-label">Status</div>
+                        <div class="profile-value">Not started</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">💡 Tips</h3>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+                    <p style="margin-bottom: 10px;">• Mention your years of experience</p>
+                    <p style="margin-bottom: 10px;">• Specify your target industry</p>
+                    <p style="margin-bottom: 10px;">• State your salary expectations</p>
+                    <p>• Indicate location preferences</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = 'session_' + Date.now();
+        let isLoading = false;
+
+        function handleFileSelect() {
+            const fileInput = document.getElementById('resumeFile');
+            const fileName = document.getElementById('fileName');
+
+            if (fileInput.files.length > 0) {
+                fileName.textContent = fileInput.files[0].name;
+            } else {
+                fileName.textContent = '';
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendSuggestion(text) {
+            document.getElementById('messageInput').value = text;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const fileInput = document.getElementById('resumeFile');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = messageInput.value.trim();
+
+            if (!message || isLoading) return;
+
+            // Hide empty state
+            document.getElementById('emptyState').style.display = 'none';
+
+            // Add user message
+            addMessage('user', message);
+
+            // Clear input
+            messageInput.value = '';
+            messageInput.style.height = '60px';
+
+            // Disable input
+            isLoading = true;
+            sendBtn.disabled = true;
+            messageInput.disabled = true;
+
+            // Show typing indicator
+            const typingId = addTypingIndicator();
+
+            try {
+                // Prepare form data
+                const formData = new FormData();
+                formData.append('session_id', sessionId);
+                formData.append('message', message);
+
+                // Add resume file if present
+                if (fileInput.files.length > 0) {
+                    formData.append('resume_file', fileInput.files[0]);
+                    // Clear file input after sending
+                    fileInput.value = '';
+                    document.getElementById('fileName').textContent = '';
+                }
+
+                // Send to backend (port 8001 for backend_offers.py)
+                const response = await fetch('http://localhost:8001/api/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                // Remove typing indicator
+                removeTypingIndicator(typingId);
+
+                // Add agent response
+                addMessage('agent', data.agent_response, data);
+
+                // Update sidebar with collected info
+                updateProfileSidebar(data.collected_info);
+
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                addMessage('agent', `Sorry, I encountered an error: ${error.message}. Please try again.`);
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        function addMessage(sender, text, data = null) {
+            const container = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = sender === 'user' ? '👤' : '🤖';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.textContent = text;
+
+            contentDiv.appendChild(textDiv);
+
+            // Add job results if present
+            if (data && data.collected_info && data.agent_response.includes('job') && data.agent_response.includes('match')) {
+                // Try to parse jobs from response (this is a simplified version)
+                // In production, you'd want the backend to return structured job data
+                addJobResults(contentDiv, data);
+            }
+
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'message-meta';
+            metaDiv.innerHTML = `
+                <span>${new Date().toLocaleTimeString()}</span>
+                ${data && data.latency ? `<span>⚡ ${data.latency}s</span>` : ''}
+            `;
+
+            contentDiv.appendChild(metaDiv);
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addJobResults(contentDiv, data) {
+            // This is a placeholder - in production you'd parse actual job data from the response
+            // For now, we just show that jobs were found
+            if (data.agent_response.toLowerCase().includes('senior python developer')) {
+                const jobDiv = document.createElement('div');
+                jobDiv.className = 'job-result';
+                jobDiv.innerHTML = `
+                    <div class="job-header">
+                        <div>
+                            <div class="job-title">Senior Python Developer</div>
+                            <div class="job-company">FinTech Corp</div>
+                        </div>
+                        <div class="match-score">85/100</div>
+                    </div>
+                    <div class="job-details">
+                        <div class="job-detail">📍 Remote / France</div>
+                        <div class="job-detail">💰 €130,000</div>
+                        <div class="job-detail">🏢 fintech</div>
+                    </div>
+                    <div class="score-breakdown">
+                        <strong>Score Breakdown:</strong>
+                        <div class="score-row">
+                            <span>Deterministic (skills, experience):</span>
+                            <span>35/40</span>
+                        </div>
+                        <div class="score-row">
+                            <span>Semantic (culture fit):</span>
+                            <span>33/40</span>
+                        </div>
+                        <div class="score-row">
+                            <span>Bonus (rare skills, trajectory):</span>
+                            <span>17/20</span>
+                        </div>
+                    </div>
+                `;
+                contentDiv.appendChild(jobDiv);
+            }
+        }
+
+        function addTypingIndicator() {
+            const container = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message agent';
+            messageDiv.id = 'typing-indicator';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = '🤖';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+
+            contentDiv.appendChild(typingDiv);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+
+            return messageDiv.id;
+        }
+
+        function removeTypingIndicator(id) {
+            const indicator = document.getElementById(id);
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        function updateProfileSidebar(collectedInfo) {
+            if (!collectedInfo) return;
+
+            const sidebar = document.getElementById('profileSidebar');
+            sidebar.innerHTML = '';
+
+            const fields = [
+                { key: 'experience_level', label: 'Experience Level', icon: '⭐' },
+                { key: 'industry', label: 'Industry', icon: '🏢' },
+                { key: 'location', label: 'Location', icon: '📍' },
+                { key: 'salary', label: 'Salary', icon: '💰' },
+                { key: 'job_title_preference', label: 'Role Preference', icon: '💼' }
+            ];
+
+            let hasInfo = false;
+            fields.forEach(field => {
+                if (collectedInfo[field.key]) {
+                    hasInfo = true;
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'profile-item';
+                    itemDiv.innerHTML = `
+                        <div class="profile-label">${field.icon} ${field.label}</div>
+                        <div class="profile-value">${collectedInfo[field.key]}</div>
+                    `;
+                    sidebar.appendChild(itemDiv);
+                }
+            });
+
+            if (!hasInfo) {
+                sidebar.innerHTML = '<div class="profile-item"><div class="profile-value">No information yet</div></div>';
+            }
+        }
+
+        function resetChat() {
+            if (confirm('Start a new conversation? This will clear your current chat.')) {
+                sessionId = 'session_' + Date.now();
+                document.getElementById('messagesContainer').innerHTML = `
+                    <div class="empty-state" id="emptyState">
+                        <h2>Welcome to AI Job Matching! 👋</h2>
+                        <p>I'm your intelligent job matching assistant. Tell me about your experience and what you're looking for, and I'll help you find the perfect match.</p>
+
+                        <div class="suggestions">
+                            <div class="suggestion-chip" onclick="sendSuggestion('I have 8 years of Python experience. Looking for fintech jobs, remote, 100K+')">
+                                💼 Senior Python + Fintech
+                            </div>
+                            <div class="suggestion-chip" onclick="sendSuggestion('I need a junior developer role in tech')">
+                                🌱 Junior Developer
+                            </div>
+                            <div class="suggestion-chip" onclick="sendSuggestion('Show me data science jobs in Paris')">
+                                📊 Data Science Paris
+                            </div>
+                        </div>
+                    </div>
+                `;
+                updateProfileSidebar({});
+            }
+        }
+    </script>
+</body>
+</html>

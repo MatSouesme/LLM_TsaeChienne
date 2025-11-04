@@ -20,6 +20,7 @@ from anthropic import Anthropic
 from pypdf import PdfReader
 from dotenv import load_dotenv
 from storage.offers_db import init_db, add_offer, list_offers, get_offer
+from agents.conversational_agent import ConversationalJobAgent
 
 # Load environment variables
 load_dotenv()
@@ -46,13 +47,18 @@ anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 # Initialize DB
 init_db()
 
+# Initialize Conversational Agent
+# (We'll pass it the offers from the DB dynamically in the chat endpoint)
+conversational_agent = None  # Lazy initialization on first chat request
+
 # Observability metrics (separate from main backend to avoid collisions)
 metrics = {
     "total_requests": 0,
     "successful_matches": 0,
     "total_latency": 0.0,
     "total_cost": 0.0,
-    "errors": 0
+    "errors": 0,
+    "chat_requests": 0  # Track conversational agent usage
 }
 
 
@@ -266,6 +272,119 @@ async def match_offers(
     except Exception as e:
         metrics["errors"] += 1
         raise HTTPException(status_code=500, detail=f"Error scoring offers: {str(e)}")
+
+
+@app.post("/api/chat")
+async def chat_with_agent(
+    session_id: Optional[str] = Form(None),
+    message: str = Form(...),
+    resume_file: Optional[UploadFile] = File(None),
+    resume_text: Optional[str] = Form(None)
+):
+    """
+    Conversational agent endpoint for interactive job matching.
+
+    This endpoint enables a chat-based interface where the agent:
+    - Asks clarifying questions when information is missing
+    - Searches for jobs intelligently from stored offers
+    - Presents matches with detailed scoring
+    - Remembers conversation context
+    """
+    import uuid
+    global conversational_agent
+
+    # Generate session_id if not provided
+    if not session_id:
+        session_id = str(uuid.uuid4())
+
+    # Extract resume text from file if provided
+    resume_content = resume_text
+    if resume_file:
+        contents = await resume_file.read()
+        if len(contents) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
+
+        if resume_file.filename.endswith('.pdf'):
+            resume_content = extract_text_from_pdf(contents)
+        elif resume_file.filename.endswith('.txt'):
+            resume_content = contents.decode('utf-8')
+        else:
+            raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
+
+    try:
+        # Lazy init the agent with current offers from DB
+        if conversational_agent is None:
+            offers = list_offers()  # Get all offers from DB
+            conversational_agent = ConversationalJobAgent(
+                api_key=os.getenv("ANTHROPIC_API_KEY"),
+                job_database=offers,
+                verbose=False
+            )
+        else:
+            # Update agent's job database with latest offers
+            offers = list_offers()
+            conversational_agent.job_database = offers
+
+        # Process message with agent
+        start_time = time.time()
+        response = conversational_agent.chat(
+            session_id=session_id,
+            user_message=message,
+            resume_text=resume_content
+        )
+
+        # Update metrics
+        latency = time.time() - start_time
+        metrics["total_requests"] += 1
+        metrics["chat_requests"] += 1
+        metrics["total_latency"] += latency
+
+        # Add latency to response
+        response["latency"] = round(latency, 2)
+
+        return response
+
+    except Exception as e:
+        metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=f"Error in conversational agent: {str(e)}")
+
+
+@app.get("/api/chat/session/{session_id}")
+async def get_session_info(session_id: str):
+    """
+    Get information about a conversation session.
+
+    Returns session summary including state and collected information.
+    """
+    global conversational_agent
+
+    if conversational_agent is None:
+        raise HTTPException(status_code=404, detail="No active conversations")
+
+    try:
+        summary = conversational_agent.get_session_summary(session_id)
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Session not found: {str(e)}")
+
+
+@app.delete("/api/chat/session/{session_id}")
+async def reset_session(session_id: str):
+    """
+    Reset/clear a conversation session.
+
+    Returns confirmation message.
+    """
+    global conversational_agent
+
+    if conversational_agent is None:
+        return {"message": "No active sessions to reset"}
+
+    try:
+        conversational_agent.reset_session(session_id)
+        return {"message": f"Session {session_id} has been reset"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting session: {str(e)}")
 
 
 @app.get("/api/health")
