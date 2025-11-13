@@ -18,6 +18,8 @@ from anthropic import Anthropic
 from pypdf import PdfReader
 from dotenv import load_dotenv
 from storage.offers_db import init_db, add_offer, list_offers, get_offer
+from agents.conversational_agent import ConversationalJobAgent
+from agents.profile_management_agent import ProfileManagementAgent
 
 # Load environment variables
 load_dotenv()
@@ -70,6 +72,21 @@ class ObservabilityMetrics(BaseModel):
     avg_cost: float
     errors: int
     status: str
+
+
+class ChatRequest(BaseModel):
+    """Request model for conversational chat"""
+    session_id: str
+    message: str
+    resume_text: Optional[str] = None
+
+
+class ChatResponse(BaseModel):
+    """Response model for conversational chat"""
+    session_id: str
+    agent_response: str
+    state: str
+    timestamp: str
 
 
 def extract_text_from_pdf(pdf_file: bytes) -> str:
@@ -140,7 +157,7 @@ JOB_DATABASE = [
         "company": "Tech Corp Inc.",
         "location": "Remote / France",
         "salary": 130000,
-        "industry": "gambling",
+        "industry": "technology",
         "description": "We're seeking a Senior Python Developer with strong experience in trading systems, FinTech, and high-frequency data processing. Must have expertise in Python, SQL, Docker, and distributed systems.",
         "requirements": ["Python", "SQL", "Docker", "Trading Systems", "FinTech"]
     },
@@ -149,7 +166,7 @@ JOB_DATABASE = [
         "company": "DataFlow Systems",
         "location": "Paris / Remote",
         "salary": 125000,
-        "industry": "gambling",
+        "industry": "technology",
         "description": "Looking for a Data Engineer with cloud experience (AWS/GCP), strong SQL skills, ETL pipelines, and experience with big data technologies.",
         "requirements": ["SQL", "ETL", "Cloud (AWS/GCP)", "Python", "Big Data"]
     },
@@ -158,7 +175,7 @@ JOB_DATABASE = [
         "company": "AI Innovations Ltd",
         "location": "Remote",
         "salary": 120000,
-        "industry": "ai",
+        "industry": "technology",
         "description": "Seeking an MLOps specialist to build and maintain ML infrastructure. Strong DevOps background with Python, Kubernetes, ML frameworks.",
         "requirements": ["Python", "Kubernetes", "MLOps", "CI/CD", "ML Frameworks"]
     },
@@ -167,7 +184,7 @@ JOB_DATABASE = [
         "company": "Startup XYZ",
         "location": "Paris",
         "salary": 115000,
-        "industry": "gambling",
+        "industry": "technology",
         "description": "Backend developer for fintech startup. Python/Django, PostgreSQL, REST APIs. Equity options available.",
         "requirements": ["Python", "Django", "PostgreSQL", "REST APIs"]
     },
@@ -227,12 +244,54 @@ JOB_DATABASE = [
     }
 ]
 
+# Load jobs from SQLite database
+def load_jobs_from_db():
+    """Load all jobs from SQLite offers database."""
+    try:
+        all_offers = list_offers()
+        jobs = []
+        for offer in all_offers:
+            # Get full offer details
+            full_offer = get_offer(offer['id'])
+            if full_offer:
+                jobs.append({
+                    'title': full_offer['title'],
+                    'company': full_offer['company'],
+                    'location': full_offer['location'],
+                    'salary': full_offer['salary'] or 0,
+                    'industry': full_offer['industry'],
+                    'description': full_offer['description'],
+                    'requirements': full_offer['requirements']
+                })
+        return jobs if jobs else JOB_DATABASE  # Fallback to hardcoded if DB empty
+    except Exception as e:
+        print(f"Error loading jobs from DB: {e}, using hardcoded jobs")
+        return JOB_DATABASE
+
+# Load jobs dynamically from SQLite
+ACTIVE_JOB_DATABASE = load_jobs_from_db()
+print(f"Loaded {len(ACTIVE_JOB_DATABASE)} jobs from database")
+
+# Initialize Conversational Agent
+conversational_agent = ConversationalJobAgent(
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+    job_database=ACTIVE_JOB_DATABASE,
+    verbose=False  # Set to True for debugging
+)
+
+# Initialize Profile Management Agent
+profile_agent = ProfileManagementAgent(
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+    job_database=ACTIVE_JOB_DATABASE,
+    verbose=True  # Set to True for debugging
+)
+
 
 def get_matching_jobs(industry: str, location: Optional[str], salary: Optional[int]) -> list:
     """Filter jobs from database based on criteria"""
     filtered_jobs = []
 
-    for job in JOB_DATABASE:
+    for job in ACTIVE_JOB_DATABASE:
         # Industry match
         if industry and job["industry"].lower() != industry.lower():
             continue
@@ -630,6 +689,230 @@ async def detailed_score(
     except Exception as e:
         metrics["errors"] += 1
         raise HTTPException(status_code=500, detail=f"Error generating detailed score: {str(e)}")
+
+
+@app.post("/api/chat")
+async def chat_with_agent(
+    session_id: Optional[str] = Form(None),
+    message: str = Form(...),
+    resume_file: Optional[UploadFile] = File(None),
+    resume_text: Optional[str] = Form(None)
+):
+    """
+    Conversational agent endpoint for interactive job matching.
+
+    This endpoint enables a chat-based interface where the agent:
+    - Asks clarifying questions when information is missing
+    - Searches for jobs intelligently
+    - Presents matches with reasoning
+    - Remembers conversation context
+
+    Args:
+        session_id: Session identifier (generated if not provided)
+        message: User's message
+        resume_file: Optional resume file upload (PDF/TXT)
+        resume_text: Optional resume as plain text
+
+    Returns:
+        JSON response with agent's reply and session info
+    """
+    import uuid
+
+    # Generate session_id if not provided
+    if not session_id:
+        session_id = str(uuid.uuid4())
+
+    # Extract resume text from file if provided
+    resume_content = resume_text
+    if resume_file:
+        contents = await resume_file.read()
+        if len(contents) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
+
+        if resume_file.filename.endswith('.pdf'):
+            resume_content = extract_text_from_pdf(contents)
+        elif resume_file.filename.endswith('.txt'):
+            resume_content = contents.decode('utf-8')
+        else:
+            raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
+
+    try:
+        # Process message with agent
+        start_time = time.time()
+        response = conversational_agent.chat(
+            session_id=session_id,
+            user_message=message,
+            resume_text=resume_content
+        )
+
+        # Update metrics
+        latency = time.time() - start_time
+        metrics["total_requests"] += 1
+        metrics["successful_matches"] += 1
+        metrics["total_latency"] += latency
+
+        # Add latency to response
+        response["latency"] = round(latency, 2)
+
+        return response
+
+    except Exception as e:
+        metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=f"Error in conversational agent: {str(e)}")
+
+
+@app.get("/api/chat/session/{session_id}")
+async def get_session_info(session_id: str):
+    """
+    Get information about a conversation session.
+
+    Args:
+        session_id: Session identifier
+
+    Returns:
+        Session summary including state and collected information
+    """
+    try:
+        summary = conversational_agent.get_session_summary(session_id)
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Session not found: {str(e)}")
+
+
+@app.delete("/api/chat/session/{session_id}")
+async def reset_session(session_id: str):
+    """
+    Reset/clear a conversation session.
+
+    Args:
+        session_id: Session identifier
+
+    Returns:
+        Confirmation message
+    """
+    try:
+        conversational_agent.reset_session(session_id)
+        return {"message": f"Session {session_id} has been reset"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting session: {str(e)}")
+
+
+# ========================================
+# PROFILE MANAGEMENT AGENT ENDPOINTS
+# ========================================
+
+@app.post("/api/profile/chat")
+async def profile_agent_chat(
+    session_id: str = Form(...),
+    message: str = Form(...),
+    resume_file: Optional[UploadFile] = File(None)
+):
+    """
+    Chat with the Profile Management Agent.
+
+    The agent will analyze CVs, identify gaps, suggest optimizations,
+    and help build a complete profile.
+
+    Args:
+        session_id: Session identifier
+        message: User's message
+        resume_file: Optional CV file (PDF or TXT)
+
+    Returns:
+        Agent response with profile state and tools used
+    """
+    resume_content = None
+
+    # Process resume file if provided
+    if resume_file:
+        file_bytes = await resume_file.read()
+
+        if resume_file.filename.endswith('.pdf'):
+            resume_content = extract_text_from_pdf(file_bytes)
+        elif resume_file.filename.endswith('.txt'):
+            resume_content = file_bytes.decode('utf-8')
+        else:
+            raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
+
+    try:
+        # Process message with profile agent
+        start_time = time.time()
+        response = profile_agent.process_message(
+            session_id=session_id,
+            user_message=message,
+            resume_text=resume_content
+        )
+
+        # Update metrics
+        latency = time.time() - start_time
+        metrics["total_requests"] += 1
+        metrics["successful_matches"] += 1
+        metrics["total_latency"] += latency
+
+        # Add latency to response
+        response["latency"] = round(latency, 2)
+
+        return response
+
+    except Exception as e:
+        metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=f"Error in profile agent: {str(e)}")
+
+
+@app.get("/api/profile/{session_id}")
+async def get_profile(session_id: str):
+    """
+    Get current profile state for a session.
+
+    Args:
+        session_id: Session identifier
+
+    Returns:
+        Complete profile data with completeness score
+    """
+    try:
+        summary = profile_agent.get_session_summary(session_id)
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Session not found: {str(e)}")
+
+
+@app.delete("/api/profile/{session_id}")
+async def reset_profile_session(session_id: str):
+    """
+    Reset/clear a profile session.
+
+    Args:
+        session_id: Session identifier
+
+    Returns:
+        Confirmation message
+    """
+    try:
+        profile_agent.reset_session(session_id)
+        return {"message": f"Profile session {session_id} has been reset"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting profile session: {str(e)}")
+
+
+@app.post("/api/profile/{session_id}/analyze")
+async def force_profile_analysis(session_id: str):
+    """
+    Force a complete profile analysis without conversation.
+
+    Useful for getting current state of gaps, matches, and completeness.
+
+    Args:
+        session_id: Session identifier
+
+    Returns:
+        Analysis results with gaps, matches, and completeness score
+    """
+    try:
+        analysis = profile_agent.force_analyze_profile(session_id)
+        return analysis
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing profile: {str(e)}")
 
 
 if __name__ == "__main__":
